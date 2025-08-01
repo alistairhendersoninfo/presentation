@@ -18,6 +18,7 @@ $action = $_GET['action'] ?? '';
 if ($action === 'upload') {
     $message = '';
     $error = '';
+    $template_name = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pptx'])) {
         $logger->log('INFO', 'Received upload request', ['user_ip'=>$_SERVER['REMOTE_ADDR']]);
         $template_name = basename($_POST['template_name']);
@@ -81,6 +82,12 @@ if ($action === 'upload') {
             </div>
             <?php if (!empty($message)): ?>
                 <div class="alert alert-success"><?= $message ?></div>
+                <?php if (!empty($template_name) && empty($error)): ?>
+                    <div style="margin:1.2em 0 0.3em 0">
+                        <a href="ViewAudit.php?template=<?= urlencode($template_name) ?>" class="btn btn-wizard btn-sm">View Audit</a>
+                        <a href="ViewAudit.php?template=<?= urlencode($template_name) ?>&download=1" class="btn btn-secondary btn-sm">Download Markdown</a>
+                    </div>
+                <?php endif; ?>
                 <div class="text-muted small">Redirecting to dashboard...</div>
             <?php elseif (!empty($error)): ?>
                 <div class="alert alert-danger"><?= $error ?></div>
