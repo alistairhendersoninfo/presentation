@@ -1,6 +1,18 @@
 <?php
 // handlers/ProjectHandler.php
 
+// 1. Load .env for LOGGING before anything else
+$env_file = dirname(__DIR__) . '/.env';
+if (file_exists($env_file)) {
+    foreach (file($env_file) as $line) {
+        if (trim($line) && strpos(trim($line), '#') !== 0) putenv(trim($line));
+    }
+}
+
+// 2. Require logger and initialize
+require_once(dirname(__DIR__)."/handlers/logging.php");
+$logger = getLogger();
+
 function listDirs($dir) {
     $dirs = [];
     foreach (glob($dir . '/*', GLOB_ONLYDIR) as $folder) {
@@ -23,30 +35,39 @@ $savedProject = null;
 
 // --- MAPPING SAVE HANDLER (AJAX OR CLASSIC POST) ---
 if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_POST['mapping_json'])) {
+    $logger->log('DEBUG', 'Mapping save POST detected', [
+        'project_name' => $_POST['project_name'],
+        'post' => $_POST
+    ]);
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project_name']);
     $mapping_json = $_POST['mapping_json'];
     $projectDir = $projectsDir . "/" . $project;
     $mappingPath = "$projectDir/mapping.json";
 
     if (!is_dir($projectDir)) {
-        @mkdir($projectDir, 0755, true); // Try to create just in case
+        $logger->log('WARNING', "Project dir does not exist, creating", ['dir' => $projectDir]);
+        @mkdir($projectDir, 0755, true);
     }
     if (!is_dir($projectDir)) {
+        $logger->log('ERROR', "Project dir could not be created", ['dir' => $projectDir]);
         http_response_code(400);
         echo json_encode(['error' => "Project directory could not be created: $projectDir"]);
         exit;
     }
     if (!is_writable($projectDir)) {
+        $logger->log('ERROR', "Project dir not writable", ['dir' => $projectDir]);
         http_response_code(500);
         echo json_encode(['error' => "Project directory not writable: $projectDir"]);
         exit;
     }
     $writeResult = file_put_contents($mappingPath, $mapping_json);
     if ($writeResult === false) {
+        $logger->log('ERROR', "Failed to write mapping.json", ['path' => $mappingPath, 'json' => $mapping_json]);
         http_response_code(500);
         echo json_encode(['error' => "Failed to write mapping.json to $mappingPath"]);
         exit;
     }
+    $logger->log('INFO', "Mapping saved", ['path' => $mappingPath]);
     $savedMapping = json_decode($mapping_json, true);
     $savedProject = $project;
     echo json_encode(['success' => true, 'path' => $mappingPath]);
@@ -55,11 +76,15 @@ if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_PO
 
 // --- PROJECT CREATION AND ANALYSIS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
+    $logger->log('DEBUG', 'Project creation POST received', [
+        'post' => $_POST
+    ]);
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
     $template = basename($_POST['template'] ?? '');
 
     if (!$project || !$template) {
         $error = "Please enter a project name and select a template.";
+        $logger->log('WARNING', "Project or template missing", ['project' => $project, 'template' => $template]);
     } else {
         $projectDir = $projectsDir . "/" . $project;
         if (!is_dir($projectDir)) mkdir($projectDir, 0755, true);
@@ -80,8 +105,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
 
         if (!file_exists("$projectDir/template_audit.md")) {
             $error = "Template audit not found. Please re-upload the template.";
+            $logger->log('ERROR', $error, ['file' => "$projectDir/template_audit.md"]);
         } elseif (!file_exists("$projectDir/presentation_flow.json")) {
             $error = "presentation_flow.json not found in root or config directory.";
+            $logger->log('ERROR', $error, ['file' => "$projectDir/presentation_flow.json"]);
         } else {
             // Run Python analysis
             $cmd = sprintf(
@@ -89,15 +116,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                 escapeshellarg($projectDir),
                 escapeshellarg(dirname(__DIR__))
             );
+            $logger->log('DEBUG', "Running analysis script", ['cmd' => $cmd]);
             exec($cmd, $output, $retval);
             $json = json_decode(implode("\n", $output), true);
 
             if (isset($json["error"])) {
                 $error = "Analysis script failed.<br><pre>" . htmlspecialchars($json["error"]) . "</pre>";
+                $logger->log('ERROR', $error, ['output' => $output]);
             } elseif (!$json || $retval !== 0) {
                 $error = "Analysis script failed.<br><pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
+                $logger->log('ERROR', $error, ['retval' => $retval, 'output' => $output]);
             } else {
                 $message = "Project created and layouts analyzed!";
+                $logger->log('INFO', $message, ['project' => $project]);
                 $resultData = $json;
                 $savedProject = $project;
             }
