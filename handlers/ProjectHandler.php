@@ -21,29 +21,39 @@ $resultData = null;
 $savedMapping = null;
 $savedProject = null;
 
-// Handle AJAX Save Mapping POST
+// --- MAPPING SAVE HANDLER (AJAX OR CLASSIC POST) ---
 if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_POST['mapping_json'])) {
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project_name']);
     $mapping_json = $_POST['mapping_json'];
     $projectDir = $projectsDir . "/" . $project;
+    $mappingPath = "$projectDir/mapping.json";
+
+    if (!is_dir($projectDir)) {
+        @mkdir($projectDir, 0755, true); // Try to create just in case
+    }
     if (!is_dir($projectDir)) {
         http_response_code(400);
-        echo json_encode(['error' => "Project not found."]);
+        echo json_encode(['error' => "Project directory could not be created: $projectDir"]);
         exit;
     }
-    $mappingPath = "$projectDir/mapping.json";
-    file_put_contents($mappingPath, $mapping_json);
+    if (!is_writable($projectDir)) {
+        http_response_code(500);
+        echo json_encode(['error' => "Project directory not writable: $projectDir"]);
+        exit;
+    }
+    $writeResult = file_put_contents($mappingPath, $mapping_json);
+    if ($writeResult === false) {
+        http_response_code(500);
+        echo json_encode(['error' => "Failed to write mapping.json to $mappingPath"]);
+        exit;
+    }
     $savedMapping = json_decode($mapping_json, true);
     $savedProject = $project;
-    if (isset($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-        // If AJAX, return JSON response and exit
-        echo json_encode(['success' => true]);
-        exit;
-    }
-    $message = "Mapping saved successfully.";
+    echo json_encode(['success' => true, 'path' => $mappingPath]);
+    exit;
 }
 
-// Form is always shown, two-column output and mapping is shown if $resultData is set
+// --- PROJECT CREATION AND ANALYSIS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
     $template = basename($_POST['template'] ?? '');
@@ -68,13 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
             @copy($flowSrc, "$projectDir/presentation_flow.json");
         }
 
-        // Check if files exist before proceeding
         if (!file_exists("$projectDir/template_audit.md")) {
             $error = "Template audit not found. Please re-upload the template.";
         } elseif (!file_exists("$projectDir/presentation_flow.json")) {
             $error = "presentation_flow.json not found in root or config directory.";
         } else {
-            // Call new display Python script
+            // Run Python analysis
             $cmd = sprintf(
                 'cd %s && python3 %s/python_web/analyse_presentation_layouts_display.py 2>&1',
                 escapeshellarg($projectDir),
@@ -146,7 +155,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
             <button type="submit" class="btn btn-upload w-100">Create Project &amp; Analyze</button>
         </form>
     </div>
-
     <?php if ($resultData): ?>
         <div class="twocols mt-5">
             <div class="col1">
@@ -204,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         <div class="mapping-wizard">
             <h4 class="mb-3">Step 2: Map Flow Tags to Layouts</h4>
             <form id="mappingForm" autocomplete="off">
+                <input type="hidden" name="project_name" id="project_name" value="<?= htmlspecialchars($savedProject ?? $project ?? $_POST['project'] ?? '') ?>">
             <?php foreach ($resultData["slide_tags"] as $tagIdx => $tag): ?>
                 <div class="mb-4 border-bottom pb-2">
                     <div style="font-weight:600; color:#205081;">
@@ -232,7 +241,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                     </div>
                 </div>
             <?php endforeach; ?>
-            <input type="hidden" name="project_name" value="<?= htmlspecialchars($savedProject ?? $_POST['project'] ?? '') ?>">
             <button type="button" class="btn btn-wizard" onclick="saveMapping()">Save Mapping</button>
             </form>
             <div id="mappingSummary" class="mapping-summary"></div>
@@ -266,6 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
             <?php endforeach; ?>
             formData.append('mapping_save', '1');
             formData.append('mapping_json', JSON.stringify(mapping));
+            formData.append('project_name', document.getElementById('project_name').value);
             fetch(window.location.href, {
                 method: 'POST',
                 body: formData,
@@ -274,18 +283,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
             .then(resp => {
                 const msg = document.getElementById('mappingSaveMsg');
                 if (resp.success) {
-                    msg.innerHTML = '<div class="alert alert-success mt-2">Mapping saved successfully!</div>';
+                    msg.innerHTML = '<div class="alert alert-success mt-2">Mapping saved successfully at <b>' + resp.path + '</b></div>';
                 } else if (resp.error) {
                     msg.innerHTML = '<div class="alert alert-danger mt-2">' + resp.error + '</div>';
                 }
             });
         }
         </script>
-    <?php endif; ?>
-
-    <?php if ($savedMapping): ?>
-        <div class="alert alert-success mt-3">Mapping for project <b><?= htmlspecialchars($savedProject) ?></b> saved!</div>
-        <pre><?= htmlspecialchars(json_encode($savedMapping, JSON_PRETTY_PRINT)) ?></pre>
     <?php endif; ?>
 
     <div class="mt-4"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
