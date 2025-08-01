@@ -52,7 +52,8 @@ $projects = listDirs(__DIR__ . "/projects");
                 <li>
                     <span style="font-weight:600;color:#1651a5;"><?= htmlspecialchars($t) ?></span>
                     <?php if (file_exists(__DIR__ . "/templates/$t/template_audit.md")): ?>
-                        (<a href="templates/<?= htmlspecialchars($t) ?>/template_audit.md" target="_blank">View Audit</a>)
+                        (<a href="handlers/ViewAudit.php?template=<?= urlencode($t) ?>" class="btn btn-sm btn-wizard">View Audit</a>
+                        <a href="handlers/ViewAudit.php?template=<?= urlencode($t) ?>&download=1" class="btn btn-sm btn-secondary">Download Markdown</a>)
                     <?php endif; ?>
                     <?php if (file_exists(__DIR__ . "/templates/$t/slide_tags.json")): ?>
                         (<a href="templates/<?= htmlspecialchars($t) ?>/slide_tags.json" target="_blank">slide_tags.json</a>)
