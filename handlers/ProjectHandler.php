@@ -18,9 +18,33 @@ $message = '';
 $error = '';
 $output = [];
 $resultData = null;
+$savedMapping = null;
+$savedProject = null;
+
+// Handle AJAX Save Mapping POST
+if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_POST['mapping_json'])) {
+    $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project_name']);
+    $mapping_json = $_POST['mapping_json'];
+    $projectDir = $projectsDir . "/" . $project;
+    if (!is_dir($projectDir)) {
+        http_response_code(400);
+        echo json_encode(['error' => "Project not found."]);
+        exit;
+    }
+    $mappingPath = "$projectDir/mapping.json";
+    file_put_contents($mappingPath, $mapping_json);
+    $savedMapping = json_decode($mapping_json, true);
+    $savedProject = $project;
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+        // If AJAX, return JSON response and exit
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    $message = "Mapping saved successfully.";
+}
 
 // Form is always shown, two-column output and mapping is shown if $resultData is set
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
     $template = basename($_POST['template'] ?? '');
 
@@ -66,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $message = "Project created and layouts analyzed!";
                 $resultData = $json;
+                $savedProject = $project;
             }
         }
     }
@@ -101,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>Create New Project</h2>
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= $error ?></div>
-        <?php elseif ($message): ?>
+        <?php elseif ($message && !$savedMapping): ?>
             <div class="alert alert-success"><?= $message ?></div>
         <?php endif; ?>
         <form method="post" class="mt-3">
@@ -121,6 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn btn-upload w-100">Create Project &amp; Analyze</button>
         </form>
     </div>
+
     <?php if ($resultData): ?>
         <div class="twocols mt-5">
             <div class="col1">
@@ -206,8 +232,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             <?php endforeach; ?>
+            <input type="hidden" name="project_name" value="<?= htmlspecialchars($savedProject ?? $_POST['project'] ?? '') ?>">
+            <button type="button" class="btn btn-wizard" onclick="saveMapping()">Save Mapping</button>
             </form>
             <div id="mappingSummary" class="mapping-summary"></div>
+            <div id="mappingSaveMsg"></div>
         </div>
         <script>
         function updateSummary() {
@@ -224,8 +253,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             summaryDiv.innerHTML = html;
         }
         document.addEventListener('DOMContentLoaded', updateSummary);
+
+        function saveMapping() {
+            const form = document.getElementById('mappingForm');
+            const formData = new FormData(form);
+            let mapping = {};
+            <?php foreach ($resultData["slide_tags"] as $tagIdx => $tag): ?>
+                mapping[<?= $tagIdx ?>] = [];
+                formData.getAll("mapping[<?= $tagIdx ?>][]").forEach(function(val){
+                    mapping[<?= $tagIdx ?>].push(val);
+                });
+            <?php endforeach; ?>
+            formData.append('mapping_save', '1');
+            formData.append('mapping_json', JSON.stringify(mapping));
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            }).then(r => r.json())
+            .then(resp => {
+                const msg = document.getElementById('mappingSaveMsg');
+                if (resp.success) {
+                    msg.innerHTML = '<div class="alert alert-success mt-2">Mapping saved successfully!</div>';
+                } else if (resp.error) {
+                    msg.innerHTML = '<div class="alert alert-danger mt-2">' + resp.error + '</div>';
+                }
+            });
+        }
         </script>
     <?php endif; ?>
+
+    <?php if ($savedMapping): ?>
+        <div class="alert alert-success mt-3">Mapping for project <b><?= htmlspecialchars($savedProject) ?></b> saved!</div>
+        <pre><?= htmlspecialchars(json_encode($savedMapping, JSON_PRETTY_PRINT)) ?></pre>
+    <?php endif; ?>
+
     <div class="mt-4"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
 </div>
 </body>
