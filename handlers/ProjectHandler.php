@@ -19,7 +19,7 @@ $error = '';
 $output = [];
 $resultData = null;
 
-// Form is always shown, two-column output is shown if $resultData is set
+// Form is always shown, two-column output and mapping is shown if $resultData is set
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
     $template = basename($_POST['template'] ?? '');
@@ -86,6 +86,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .layout-metadata { font-size:0.97em; color: #444;}
         .layout-metadata .layout-title { font-weight:600; color: #205081;}
         .layout-metadata ul { margin-bottom: 0.2em;}
+        .mapping-wizard { max-width: 1050px; margin: 2.5rem auto 2rem auto; background:#fff; border-radius:1.3rem; box-shadow:0 2px 14px #20508114; padding:2.2rem 2rem 2.6rem 2rem;}
+        .mapping-wizard h4 { color:#1651a5;font-weight:700; }
+        .mapping-wizard label { font-weight:500;}
+        .mapping-summary { font-size:1.02em; }
+        @media (max-width: 900px) {
+            .twocols { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
@@ -114,7 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn btn-upload w-100">Create Project &amp; Analyze</button>
         </form>
     </div>
-
     <?php if ($resultData): ?>
         <div class="twocols mt-5">
             <div class="col1">
@@ -168,8 +174,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endforeach; ?>
             </div>
         </div>
+        <!-- MAPPING WIZARD STARTS HERE -->
+        <div class="mapping-wizard">
+            <h4 class="mb-3">Step 2: Map Flow Tags to Layouts</h4>
+            <form id="mappingForm" autocomplete="off">
+            <?php foreach ($resultData["slide_tags"] as $tagIdx => $tag): ?>
+                <div class="mb-4 border-bottom pb-2">
+                    <div style="font-weight:600; color:#205081;">
+                        <?= htmlspecialchars($tag["tag"]) ?>
+                        <?php if ($tag["mandatory"]): ?>
+                            <span class="badge bg-success">Mandatory</span>
+                        <?php else: ?>
+                            <span class="badge bg-secondary">Optional</span>
+                        <?php endif; ?>
+                    </div>
+                    <div style="color:#444;"><?= htmlspecialchars($tag["description"]) ?></div>
+                    <div class="mt-2 ms-2">
+                        <?php foreach ($resultData["layouts"] as $layout): ?>
+                            <label class="me-3">
+                                <input type="checkbox"
+                                       name="mapping[<?= $tagIdx ?>][]"
+                                       value="<?= $layout['layout_index'] ?>"
+                                       data-tagidx="<?= $tagIdx ?>"
+                                       data-tagname="<?= htmlspecialchars($tag["tag"]) ?>"
+                                       data-layoutname="<?= htmlspecialchars($layout["layout_name"]) ?>"
+                                       onchange="updateSummary()"
+                                >
+                                Layout <?= $layout['layout_index'] ?>: <?= htmlspecialchars($layout["layout_name"]) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+            </form>
+            <div id="mappingSummary" class="mapping-summary"></div>
+        </div>
+        <script>
+        function updateSummary() {
+            const summaryDiv = document.getElementById('mappingSummary');
+            let html = '<h5 class="mt-3">Your Mapping</h5><table class="table table-sm"><tr><th>Tag</th><th>Layouts Selected</th></tr>';
+            <?php foreach ($resultData["slide_tags"] as $tagIdx => $tag): ?>
+                let selected = [];
+                document.querySelectorAll('input[name="mapping[<?= $tagIdx ?>][]"]:checked').forEach(function(cb){
+                    selected.push(cb.value + ' (' + cb.getAttribute('data-layoutname') + ')');
+                });
+                html += '<tr><td><b><?= htmlspecialchars($tag["tag"]) ?></b></td><td>' + (selected.length ? selected.join(', ') : '<span style="color:#bbb;">None</span>') + '</td></tr>';
+            <?php endforeach; ?>
+            html += '</table>';
+            summaryDiv.innerHTML = html;
+        }
+        document.addEventListener('DOMContentLoaded', updateSummary);
+        </script>
     <?php endif; ?>
-
     <div class="mt-4"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
 </div>
 </body>
