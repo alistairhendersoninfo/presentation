@@ -27,9 +27,9 @@ if ($action === 'upload') {
         $pptx_path = $tpl_dir . "/template.pptx";
         if (move_uploaded_file($_FILES['pptx']['tmp_name'], $pptx_path)) {
             $logger->log('INFO', "PPTX uploaded", ['path' => $pptx_path]);
-            // Run the Python audit script
+            // Run the Python audit script (FIXED PATH)
             $cmd = sprintf(
-                'cd %s && python3 %s/audit_pptx.py template.pptx 2>&1',
+                'cd %s && python3 %s/python_web/audit_pptx.py template.pptx 2>&1',
                 escapeshellarg($tpl_dir),
                 escapeshellarg(dirname(__DIR__))
             );
