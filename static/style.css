@@ -1,3 +1,85 @@
-
-body { margin-top: 2rem; }
-h1, h2 { color: #205081; }
+body {
+    background: #f6f9fc;
+    margin-top: 2rem;
+    min-height: 100vh;
+}
+h1, h2 {
+    color: #205081;
+    font-weight: 700;
+}
+.card-upload, .wizard-step {
+    background: #fff;
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 24px #20508113;
+    padding: 2.5rem 2rem 2rem 2rem;
+    max-width: 480px;
+    margin: 4rem auto 0 auto;
+}
+.wizard-step {
+    max-width: none;
+    margin: 0 0 2rem 0;
+    padding: 2rem;
+}
+.upload-note, .wizard-desc {
+    color: #3a4a6b;
+    margin-bottom: 1.4rem;
+    font-size: 1.1rem;
+}
+.wizard-header {
+    color: #205081;
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+.wizard-desc {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    color: #334;
+}
+.wizard-progress {
+    margin-bottom: 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.wizard-progress-divider {
+    flex: 1;
+    height: 3px;
+    background: #d7e3fa;
+    margin: 0 0.5rem;
+}
+.btn-wizard, .btn-upload {
+    background: #205081;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 2rem;
+    padding: 0.65rem 2.5rem;
+    font-size: 1.08rem;
+    margin-top: 0.3rem;
+    box-shadow: 0 4px 12px #20508133;
+}
+.btn-wizard:hover, .btn-upload:hover {
+    background: #144387;
+    color: #fff;
+}
+label { font-weight: 600; }
+.alert-success, .alert-danger {
+    font-size: 1.08rem;
+    border-radius: 1rem;
+}
+.wizard-list li {
+    margin-bottom: 0.6rem;
+}
+.step-badge {
+    background: #205081;
+    color: #fff;
+    border-radius: 50%;
+    width: 2.4rem;
+    height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.25rem;
+    margin-right: 1rem;
+}

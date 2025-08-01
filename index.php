@@ -15,17 +15,7 @@ $projects = listDirs(__DIR__ . "/projects");
     <meta charset="UTF-8">
     <title>Presentation Builder Wizard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f6f9fc; }
-        .wizard-step { background: #fff; border-radius: 1.5rem; box-shadow: 0 6px 24px #c1d8fd44; padding: 2rem; margin-bottom: 2rem; }
-        .wizard-header { color: #205081; font-weight: 700; font-size: 2rem; margin-bottom: 0.5rem; }
-        .wizard-desc { font-size: 1.1rem; margin-bottom: 1.5rem; color: #334; }
-        .wizard-progress { margin-bottom: 2.5rem; }
-        .btn-wizard { background: #205081; color: #fff; font-weight: 600; font-size: 1.2rem; border-radius: 1.5rem; padding: 0.7rem 2.5rem; box-shadow: 0 4px 12px #20508133;}
-        .btn-wizard:hover { background: #1651a5; color: #fff; }
-        .wizard-list li { margin-bottom: 0.6rem; }
-        .step-badge { background: #205081; color: #fff; border-radius: 50%; width: 2.4rem; height: 2.4rem; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; margin-right: 1rem; }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <div class="container py-5">
@@ -96,7 +86,6 @@ $projects = listDirs(__DIR__ . "/projects");
             <?php endforeach; ?>
         </ul>
     </div>
-
 </div>
 </body>
 </html>

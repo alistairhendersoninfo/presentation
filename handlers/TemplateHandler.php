@@ -45,19 +45,38 @@ if ($action === 'upload') {
     <html>
     <head>
         <title>Upload & Audit Template</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="/static/style.css">
         <?php if (!empty($message)) { echo '<meta http-equiv="refresh" content="3;url=../index.php">'; } ?>
     </head>
     <body>
-        <?php if (!empty($message)): ?>
-            <h3><?= $message ?></h3>
-        <?php endif; ?>
-        <?php if (empty($message)): ?>
-            <form method="post" enctype="multipart/form-data">
-                Template Name: <input type="text" name="template_name" required><br>
-                PPTX File: <input type="file" name="pptx" required><br>
-                <input type="submit" value="Upload & Audit">
-            </form>
-        <?php endif; ?>
+        <div class="card-upload">
+            <h2>Upload & Audit Template</h2>
+            <div class="upload-note">
+                Upload a new PowerPoint (.pptx) template.<br>
+                The system will extract layouts and audit your file automatically.<br>
+                <span style="font-size:0.98em;color:#677;">Template names should be unique, e.g., <span style="font-family:monospace;">acme_project</span></span>
+            </div>
+            <?php if (!empty($message)): ?>
+                <div class="alert alert-success"><?= $message ?></div>
+                <div class="text-muted small">Redirecting to dashboard...</div>
+            <?php endif; ?>
+            <?php if (empty($message)): ?>
+                <form method="post" enctype="multipart/form-data" class="mt-2">
+                    <div class="mb-3">
+                        <label for="template_name" class="form-label">Template Name</label>
+                        <input type="text" class="form-control" id="template_name" name="template_name" required autocomplete="off" maxlength="40">
+                    </div>
+                    <div class="mb-3">
+                        <label for="pptx" class="form-label">PPTX File</label>
+                        <input type="file" class="form-control" id="pptx" name="pptx" accept=".pptx" required>
+                    </div>
+                    <button type="submit" class="btn btn-upload w-100">Upload &amp; Audit</button>
+                </form>
+            <?php endif; ?>
+        </div>
     </body>
     </html>
     <?php
