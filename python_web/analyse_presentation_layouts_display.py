@@ -63,7 +63,8 @@ def parse_layouts_from_audit(audit_md):
                             })
                 elif l.startswith("|") and section == "shapes":
                     cols = [c.strip() for c in l.strip('| \n').split('|')]
-                    if cols and cols[0] != 'Title' and cols[2]:
+                    # Only process if at least 3 columns and not header/dash, and description exists
+                    if len(cols) >= 3 and cols[0] != 'Title' and cols[0] != '---' and cols[2]:
                         shape_descriptions.append(cols[2])
                 idx += 1
             layouts.append({
