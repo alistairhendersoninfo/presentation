@@ -374,6 +374,7 @@ file_put_contents(dirname(__DIR__) . '/logs/debug.log',
         document.addEventListener('DOMContentLoaded', updateSummary);
 
         function saveMapping() {
+            alert('Save mapping button clicked - check console for details');
             console.log('Save mapping button clicked');
             
             // Show loading state
@@ -390,57 +391,34 @@ file_put_contents(dirname(__DIR__) . '/logs/debug.log',
 
             console.log('Mapping data:', mapping);
             console.log('Project name:', document.getElementById('project_name').value);
-
-            const payload = new URLSearchParams();
-            payload.append('mapping_save', '1');
-            payload.append('mapping_json', JSON.stringify(mapping));
-            payload.append('project_name', document.getElementById('project_name').value);
-
-            console.log('Sending AJAX request...');
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: payload,
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-                }
-                return response.text(); // Get as text first to debug
-            })
-            .then(responseText => {
-                console.log('Raw response:', responseText);
-                
-                try {
-                    const resp = JSON.parse(responseText);
-                    console.log('Parsed response:', resp);
-                    
-                    const msg = document.getElementById('mappingSaveMsg');
-                    if (resp.success) {
-                        msg.innerHTML = '<div class="alert alert-success mt-2"><strong>Success!</strong> Mapping saved to: <code>' + resp.path + '</code></div>';
-                    } else if (resp.error) {
-                        msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Error:</strong> ' + resp.error + '</div>';
-                    } else {
-                        msg.innerHTML = '<div class="alert alert-warning mt-2"><strong>Warning:</strong> Unexpected response format</div>';
-                    }
-                } catch (e) {
-                    console.error('JSON parse error:', e);
-                    const msg = document.getElementById('mappingSaveMsg');
-                    msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Parse Error:</strong> Invalid JSON response</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Fetch error:', error);
-                const msg = document.getElementById('mappingSaveMsg');
-                msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Network Error:</strong> ' + error.message + '</div>';
-            });
+            
+            // Test with a simple form submission first
+            const testForm = document.createElement('form');
+            testForm.method = 'POST';
+            testForm.action = window.location.href;
+            
+            const input1 = document.createElement('input');
+            input1.type = 'hidden';
+            input1.name = 'mapping_save';
+            input1.value = '1';
+            testForm.appendChild(input1);
+            
+            const input2 = document.createElement('input');
+            input2.type = 'hidden';
+            input2.name = 'mapping_json';
+            input2.value = JSON.stringify(mapping);
+            testForm.appendChild(input2);
+            
+            const input3 = document.createElement('input');
+            input3.type = 'hidden';
+            input3.name = 'project_name';
+            input3.value = document.getElementById('project_name').value;
+            testForm.appendChild(input3);
+            
+            document.body.appendChild(testForm);
+            
+            console.log('Submitting form...');
+            testForm.submit();
         }
         </script>
     <?php endif; ?>
