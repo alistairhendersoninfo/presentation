@@ -35,77 +35,49 @@ $savedProject = null;
 
 // --- MAPPING SAVE HANDLER (AJAX OR CLASSIC POST) ---
 if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_POST['mapping_json'])) {
-    // Set proper headers for AJAX response
-    header('Content-Type: application/json');
-    
     $logger->log('DEBUG', 'Mapping save POST detected', [
         'project_name' => $_POST['project_name'],
-        'mapping_json_length' => strlen($_POST['mapping_json'])
+        'post' => $_POST
     ]);
-    
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project_name']);
     $mapping_json = $_POST['mapping_json'];
-    
-    // Validate JSON
-    $mapping_data = json_decode($mapping_json, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        $logger->log('ERROR', "Invalid JSON in mapping", ['json_error' => json_last_error_msg()]);
-        http_response_code(400);
-        echo json_encode(['error' => "Invalid JSON data: " . json_last_error_msg()]);
-        exit;
-    }
-    
     $projectDir = $projectsDir . "/" . $project;
     $mappingPath = "$projectDir/mapping.json";
 
-    // Create project directory if it doesn't exist
     if (!is_dir($projectDir)) {
-        $logger->log('INFO', "Creating project directory", ['dir' => $projectDir]);
-        if (!mkdir($projectDir, 0755, true)) {
-            $logger->log('ERROR', "Failed to create project directory", ['dir' => $projectDir]);
-            http_response_code(500);
-            echo json_encode(['error' => "Could not create project directory: $projectDir"]);
-            exit;
-        }
+        $logger->log('WARNING', "Project dir does not exist, creating", ['dir' => $projectDir]);
+        @mkdir($projectDir, 0755, true);
     }
-    
-    // Check if directory is writable
+    if (!is_dir($projectDir)) {
+        $logger->log('ERROR', "Project dir could not be created", ['dir' => $projectDir]);
+        http_response_code(400);
+        echo json_encode(['error' => "Project directory could not be created: $projectDir"]);
+        exit;
+    }
     if (!is_writable($projectDir)) {
-        $logger->log('ERROR', "Project directory not writable", ['dir' => $projectDir]);
+        $logger->log('ERROR', "Project dir not writable", ['dir' => $projectDir]);
         http_response_code(500);
         echo json_encode(['error' => "Project directory not writable: $projectDir"]);
         exit;
     }
-    
-    // Write the mapping file
     $writeResult = file_put_contents($mappingPath, $mapping_json);
     if ($writeResult === false) {
-        $logger->log('ERROR', "Failed to write mapping.json", [
-            'path' => $mappingPath, 
-            'error' => error_get_last()
-        ]);
+        $logger->log('ERROR', "Failed to write mapping.json", ['path' => $mappingPath, 'json' => $mapping_json]);
         http_response_code(500);
         echo json_encode(['error' => "Failed to write mapping.json to $mappingPath"]);
         exit;
     }
-    
-    $logger->log('INFO', "Mapping saved successfully", [
-        'path' => $mappingPath,
-        'bytes_written' => $writeResult
-    ]);
-    
-    echo json_encode([
-        'success' => true, 
-        'path' => $mappingPath,
-        'message' => 'Mapping saved successfully'
-    ]);
+    $logger->log('INFO', "Mapping saved", ['path' => $mappingPath]);
+    $savedMapping = json_decode($mapping_json, true);
+    $savedProject = $project;
+    echo json_encode(['success' => true, 'path' => $mappingPath]);
     exit;
 }
 
 // --- PROJECT CREATION AND ANALYSIS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
     $logger->log('DEBUG', 'Project creation POST received', [
-        'post_keys' => array_keys($_POST)
+        'post' => $_POST
     ]);
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
     $template = basename($_POST['template'] ?? '');
@@ -231,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                 </ul>
             </div>
             <div class="col2">
-                <h4>Layouts (Placeholders &amp; Shape Descriptions)</h4>
+                <h4>Layouts (Placeholders & Shape Descriptions)</h4>
                 <?php foreach ($resultData["layouts"] as $layout): ?>
                     <div class="layout-metadata mb-4">
                         <div class="layout-title"><?= "Layout {$layout['layout_index']}: " . htmlspecialchars($layout['layout_name']) ?></div>
@@ -320,10 +292,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         document.addEventListener('DOMContentLoaded', updateSummary);
 
         function saveMapping() {
-            // Show loading state
-            const msgDiv = document.getElementById('mappingSaveMsg');
-            msgDiv.innerHTML = '<div class="alert alert-info mt-2">Saving mapping...</div>';
-            
             let mapping = {};
             <?php foreach ($resultData["slide_tags"] as $tagIdx => $tag): ?>
                 mapping[<?= $tagIdx ?>] = [];
@@ -344,27 +312,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'X-Requested-With': 'XMLHttpRequest'
                 }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-                }
-                return response.json();
-            })
+            }).then(r => r.json())
             .then(resp => {
                 const msg = document.getElementById('mappingSaveMsg');
                 if (resp.success) {
-                    msg.innerHTML = '<div class="alert alert-success mt-2"><strong>Success!</strong> Mapping saved to: <code>' + resp.path + '</code></div>';
+                    msg.innerHTML = '<div class="alert alert-success mt-2">Mapping saved successfully at <b>' + resp.path + '</b></div>';
                 } else if (resp.error) {
-                    msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Error:</strong> ' + resp.error + '</div>';
-                } else {
-                    msg.innerHTML = '<div class="alert alert-warning mt-2"><strong>Warning:</strong> Unexpected response format</div>';
+                    msg.innerHTML = '<div class="alert alert-danger mt-2">' + resp.error + '</div>';
                 }
-            })
-            .catch(error => {
-                const msg = document.getElementById('mappingSaveMsg');
-                msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Network Error:</strong> ' + error.message + '</div>';
-                console.error('Save mapping error:', error);
             });
         }
         </script>
