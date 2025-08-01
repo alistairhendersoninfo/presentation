@@ -114,37 +114,23 @@ if ($action === 'create') {
                         </ul>
                     </div>
                     <div class="col2">
-                        <h4>Layouts (with Metadata)</h4>
+                        <h4>Layouts (Placeholders Only)</h4>
                         <?php foreach ($resultData["layouts"] as $layout): ?>
                             <div class="layout-metadata mb-4">
                                 <div class="layout-title"><?= "Layout {$layout['layout_index']}: " . htmlspecialchars($layout['layout_name']) ?></div>
                                 <?php if (!empty($layout['placeholders'])): ?>
-                                    <b>Placeholders:</b>
                                     <ul>
                                         <?php foreach ($layout['placeholders'] as $p): ?>
                                             <li>
-                                                <?= isset($p['title']) ? "<b>" . htmlspecialchars($p['title']) . "</b>: " : "" ?>
-                                                <?= isset($p['description']) ? htmlspecialchars($p['description']) : htmlspecialchars($p['name'] ?? '') ?>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
-                                <?php if (!empty($layout['shapes'])): ?>
-                                    <b>Shapes:</b>
-                                    <ul>
-                                        <?php foreach ($layout['shapes'] as $s): ?>
-                                            <li><?= htmlspecialchars($s['title']) ?>
-                                                <?php if (!empty($s['description'])): ?>
-                                                    : <?= htmlspecialchars($s['description']) ?>
+                                                <b><?= htmlspecialchars($p['title']) ?></b>
+                                                <?php if (!empty($p['description'])): ?>
+                                                    : <?= htmlspecialchars($p['description']) ?>
                                                 <?php endif; ?>
                                             </li>
                                         <?php endforeach; ?>
                                     </ul>
-                                <?php endif; ?>
-                                <?php if (!empty($layout['summary'])): ?>
-                                    <div class="text-muted" style="font-size:0.96em;">
-                                        <b>Summary:</b> <?= htmlspecialchars(implode('; ', $layout['summary'])) ?>
-                                    </div>
+                                <?php else: ?>
+                                    <div style="color:#888;">No placeholders detected.</div>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
