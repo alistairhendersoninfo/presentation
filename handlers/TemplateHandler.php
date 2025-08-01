@@ -1,4 +1,15 @@
 <?php
+// handlers/TemplateHandler.php
+
+// STEP 1: LOAD .env BEFORE ANYTHING ELSE
+$env_file = dirname(__DIR__) . '/.env';
+if (file_exists($env_file)) {
+    foreach (file($env_file) as $line) {
+        if (trim($line) && strpos(trim($line), '#') !== 0) putenv(trim($line));
+    }
+}
+
+// STEP 2: Now require logging.php
 require_once(dirname(__DIR__)."/handlers/logging.php");
 $logger = getLogger();
 
