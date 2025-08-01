@@ -89,10 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         $projectDir = $projectsDir . "/" . $project;
         if (!is_dir($projectDir)) mkdir($projectDir, 0755, true);
 
-        // Copy the audit markdown
         @copy("$templatesDir/$template/template_audit.md", "$projectDir/template_audit.md");
 
-        // Copy presentation_flow.json (from root or config/)
         $flowSrc = null;
         if (file_exists(dirname(__DIR__) . "/presentation_flow.json")) {
             $flowSrc = dirname(__DIR__) . "/presentation_flow.json";
@@ -110,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
             $error = "presentation_flow.json not found in root or config directory.";
             $logger->log('ERROR', $error, ['file' => "$projectDir/presentation_flow.json"]);
         } else {
-            // Run Python analysis
             $cmd = sprintf(
                 'cd %s && python3 %s/python_web/analyse_presentation_layouts_display.py 2>&1',
                 escapeshellarg($projectDir),
@@ -239,7 +236,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                 <?php endforeach; ?>
             </div>
         </div>
-        <!-- MAPPING WIZARD STARTS HERE -->
+
+        <!-- MAPPING WIZARD -->
         <div class="mapping-wizard">
             <h4 class="mb-3">Step 2: Map Flow Tags to Layouts</h4>
             <form id="mappingForm" autocomplete="off">
@@ -294,22 +292,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         document.addEventListener('DOMContentLoaded', updateSummary);
 
         function saveMapping() {
-            const form = document.getElementById('mappingForm');
-            const formData = new FormData(form);
             let mapping = {};
             <?php foreach ($resultData["slide_tags"] as $tagIdx => $tag): ?>
                 mapping[<?= $tagIdx ?>] = [];
-                formData.getAll("mapping[<?= $tagIdx ?>][]").forEach(function(val){
-                    mapping[<?= $tagIdx ?>].push(val);
+                document.querySelectorAll('input[name="mapping[<?= $tagIdx ?>][]"]:checked').forEach(function(cb){
+                    mapping[<?= $tagIdx ?>].push(cb.value);
                 });
             <?php endforeach; ?>
-            formData.append('mapping_save', '1');
-            formData.append('mapping_json', JSON.stringify(mapping));
-            formData.append('project_name', document.getElementById('project_name').value);
+
+            const payload = new URLSearchParams();
+            payload.append('mapping_save', '1');
+            payload.append('mapping_json', JSON.stringify(mapping));
+            payload.append('project_name', document.getElementById('project_name').value);
+
             fetch(window.location.href, {
                 method: 'POST',
-                body: formData,
-                headers: {'X-Requested-With': 'XMLHttpRequest'}
+                body: payload,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             }).then(r => r.json())
             .then(resp => {
                 const msg = document.getElementById('mappingSaveMsg');
@@ -322,7 +324,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         }
         </script>
     <?php endif; ?>
-
     <div class="mt-4"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
 </div>
 </body>
