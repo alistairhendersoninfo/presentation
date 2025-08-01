@@ -1,6 +1,10 @@
 <?php
 // handlers/ProjectHandler.php
 
+// Force enable logging for debugging
+putenv('LOGGING_ENABLED=true');
+putenv('LOGGING_LEVEL=DEBUG');
+
 // 1. Load .env for LOGGING before anything else
 $env_file = dirname(__DIR__) . '/.env';
 if (file_exists($env_file)) {
@@ -12,6 +16,9 @@ if (file_exists($env_file)) {
 // 2. Require logger and initialize
 require_once(dirname(__DIR__)."/handlers/logging.php");
 $logger = getLogger();
+
+// Test logging immediately
+$logger->log('INFO', 'ProjectHandler loaded', ['timestamp' => date('Y-m-d H:i:s')]);
 
 function listDirs($dir) {
     $dirs = [];
@@ -33,59 +40,91 @@ $resultData = null;
 $savedMapping = null;
 $savedProject = null;
 
+// Log all POST data for debugging
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $logger->log('DEBUG', 'POST request received', [
+        'post_data' => $_POST,
+        'request_uri' => $_SERVER['REQUEST_URI'],
+        'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'not set'
+    ]);
+}
+
 // --- MAPPING SAVE HANDLER (AJAX OR CLASSIC POST) ---
 if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_POST['mapping_json'])) {
+    $logger->log('INFO', 'MAPPING SAVE TRIGGERED', [
+        'project_name' => $_POST['project_name'],
+        'mapping_json' => $_POST['mapping_json']
+    ]);
+    
     // Set proper headers for AJAX response
     header('Content-Type: application/json');
-    
-    $logger->log('DEBUG', 'Mapping save POST detected', [
-        'project_name' => $_POST['project_name'],
-        'mapping_json_length' => strlen($_POST['mapping_json'])
-    ]);
     
     $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project_name']);
     $mapping_json = $_POST['mapping_json'];
     
+    $logger->log('DEBUG', 'Processing mapping save', [
+        'sanitized_project' => $project,
+        'json_length' => strlen($mapping_json)
+    ]);
+    
     // Validate JSON
     $mapping_data = json_decode($mapping_json, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        $logger->log('ERROR', "Invalid JSON in mapping", ['json_error' => json_last_error_msg()]);
+        $error_msg = "Invalid JSON data: " . json_last_error_msg();
+        $logger->log('ERROR', $error_msg, ['raw_json' => $mapping_json]);
         http_response_code(400);
-        echo json_encode(['error' => "Invalid JSON data: " . json_last_error_msg()]);
+        echo json_encode(['error' => $error_msg]);
         exit;
     }
     
     $projectDir = $projectsDir . "/" . $project;
     $mappingPath = "$projectDir/mapping.json";
+    
+    $logger->log('DEBUG', 'File paths determined', [
+        'project_dir' => $projectDir,
+        'mapping_path' => $mappingPath
+    ]);
 
     // Create project directory if it doesn't exist
     if (!is_dir($projectDir)) {
         $logger->log('INFO', "Creating project directory", ['dir' => $projectDir]);
         if (!mkdir($projectDir, 0755, true)) {
-            $logger->log('ERROR', "Failed to create project directory", ['dir' => $projectDir]);
+            $error_msg = "Could not create project directory: $projectDir";
+            $logger->log('ERROR', $error_msg, ['php_error' => error_get_last()]);
             http_response_code(500);
-            echo json_encode(['error' => "Could not create project directory: $projectDir"]);
+            echo json_encode(['error' => $error_msg]);
             exit;
         }
+        $logger->log('INFO', "Project directory created successfully", ['dir' => $projectDir]);
     }
     
     // Check if directory is writable
     if (!is_writable($projectDir)) {
-        $logger->log('ERROR', "Project directory not writable", ['dir' => $projectDir]);
+        $error_msg = "Project directory not writable: $projectDir";
+        $logger->log('ERROR', $error_msg, [
+            'dir' => $projectDir,
+            'permissions' => substr(sprintf('%o', fileperms($projectDir)), -4)
+        ]);
         http_response_code(500);
-        echo json_encode(['error' => "Project directory not writable: $projectDir"]);
+        echo json_encode(['error' => $error_msg]);
         exit;
     }
+    
+    $logger->log('DEBUG', 'About to write mapping file', [
+        'path' => $mappingPath,
+        'data_length' => strlen($mapping_json)
+    ]);
     
     // Write the mapping file
     $writeResult = file_put_contents($mappingPath, $mapping_json);
     if ($writeResult === false) {
-        $logger->log('ERROR', "Failed to write mapping.json", [
+        $error_msg = "Failed to write mapping.json to $mappingPath";
+        $logger->log('ERROR', $error_msg, [
             'path' => $mappingPath, 
-            'error' => error_get_last()
+            'php_error' => error_get_last()
         ]);
         http_response_code(500);
-        echo json_encode(['error' => "Failed to write mapping.json to $mappingPath"]);
+        echo json_encode(['error' => $error_msg]);
         exit;
     }
     
@@ -97,7 +136,8 @@ if (isset($_POST['mapping_save']) && isset($_POST['project_name']) && isset($_PO
     echo json_encode([
         'success' => true, 
         'path' => $mappingPath,
-        'message' => 'Mapping saved successfully'
+        'message' => 'Mapping saved successfully',
+        'bytes_written' => $writeResult
     ]);
     exit;
 }
@@ -160,6 +200,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         }
     }
 }
+
+// Force write a test log entry
+file_put_contents(dirname(__DIR__) . '/logs/debug.log', 
+    date('Y-m-d H:i:s') . " - ProjectHandler executed\n", 
+    FILE_APPEND | LOCK_EX
+);
 ?>
 <!DOCTYPE html>
 <html>
@@ -187,6 +233,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
 </head>
 <body>
 <div class="container py-4">
+    <!-- Debug info -->
+    <div class="alert alert-info">
+        <strong>Debug Info:</strong> 
+        Logs dir: <?= is_dir(dirname(__DIR__) . '/logs') ? 'EXISTS' : 'MISSING' ?> | 
+        Writable: <?= is_writable(dirname(__DIR__) . '/logs') ? 'YES' : 'NO' ?> |
+        Log file: <?= file_exists(dirname(__DIR__) . '/logs/php.log') ? 'EXISTS' : 'MISSING' ?>
+    </div>
+    
     <div class="card-upload" style="max-width:600px;">
         <h2>Create New Project</h2>
         <?php if ($error): ?>
@@ -320,6 +374,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
         document.addEventListener('DOMContentLoaded', updateSummary);
 
         function saveMapping() {
+            console.log('Save mapping button clicked');
+            
             // Show loading state
             const msgDiv = document.getElementById('mappingSaveMsg');
             msgDiv.innerHTML = '<div class="alert alert-info mt-2">Saving mapping...</div>';
@@ -332,10 +388,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                 });
             <?php endforeach; ?>
 
+            console.log('Mapping data:', mapping);
+            console.log('Project name:', document.getElementById('project_name').value);
+
             const payload = new URLSearchParams();
             payload.append('mapping_save', '1');
             payload.append('mapping_json', JSON.stringify(mapping));
             payload.append('project_name', document.getElementById('project_name').value);
+
+            console.log('Sending AJAX request...');
 
             fetch(window.location.href, {
                 method: 'POST',
@@ -346,25 +407,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['mapping_save'])) {
                 }
             })
             .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
                 if (!response.ok) {
                     throw new Error('HTTP ' + response.status + ': ' + response.statusText);
                 }
-                return response.json();
+                return response.text(); // Get as text first to debug
             })
-            .then(resp => {
-                const msg = document.getElementById('mappingSaveMsg');
-                if (resp.success) {
-                    msg.innerHTML = '<div class="alert alert-success mt-2"><strong>Success!</strong> Mapping saved to: <code>' + resp.path + '</code></div>';
-                } else if (resp.error) {
-                    msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Error:</strong> ' + resp.error + '</div>';
-                } else {
-                    msg.innerHTML = '<div class="alert alert-warning mt-2"><strong>Warning:</strong> Unexpected response format</div>';
+            .then(responseText => {
+                console.log('Raw response:', responseText);
+                
+                try {
+                    const resp = JSON.parse(responseText);
+                    console.log('Parsed response:', resp);
+                    
+                    const msg = document.getElementById('mappingSaveMsg');
+                    if (resp.success) {
+                        msg.innerHTML = '<div class="alert alert-success mt-2"><strong>Success!</strong> Mapping saved to: <code>' + resp.path + '</code></div>';
+                    } else if (resp.error) {
+                        msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Error:</strong> ' + resp.error + '</div>';
+                    } else {
+                        msg.innerHTML = '<div class="alert alert-warning mt-2"><strong>Warning:</strong> Unexpected response format</div>';
+                    }
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    const msg = document.getElementById('mappingSaveMsg');
+                    msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Parse Error:</strong> Invalid JSON response</div>';
                 }
             })
             .catch(error => {
+                console.error('Fetch error:', error);
                 const msg = document.getElementById('mappingSaveMsg');
                 msg.innerHTML = '<div class="alert alert-danger mt-2"><strong>Network Error:</strong> ' + error.message + '</div>';
-                console.error('Save mapping error:', error);
             });
         }
         </script>
