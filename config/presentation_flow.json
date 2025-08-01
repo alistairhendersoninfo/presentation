@@ -1,0 +1,77 @@
+[
+  {
+    "tag": "Title Slide",
+    "mandatory": true,
+    "description": "Project/initiative name, date, presenter, organization"
+  },
+  {
+    "tag": "Executive Summary",
+    "mandatory": true,
+    "description": "3-5 bullets with the core findings/recommendations and business impact"
+  },
+  {
+    "tag": "Agenda",
+    "mandatory": true,
+    "description": "List of all upcoming sections"
+  },
+  {
+    "tag": "Business Context & Objectives",
+    "mandatory": true,
+    "description": "Why is this topic important now? What are the high-level goals (compliance, risk mitigation, performance, etc.)?"
+  },
+  {
+    "tag": "Risk & Opportunity Assessment",
+    "mandatory": true,
+    "description": "Top 3-5 business risks; Strategic opportunities, ideally quantified"
+  },
+  {
+    "tag": "Current State Analysis",
+    "mandatory": true,
+    "description": "Overview of current environment/architecture/process; Key challenges and pain points, using data where available"
+  },
+  {
+    "tag": "Solution Overview",
+    "mandatory": true,
+    "description": "High-level description of the proposed solution; Business and technical rationale; Key benefits/features"
+  },
+  {
+    "tag": "Options & Alternatives",
+    "mandatory": false,
+    "description": "Brief summary of other options considered; Pros/cons table; Rationale for chosen solution"
+  },
+  {
+    "tag": "Implementation Roadmap",
+    "mandatory": false,
+    "description": "Major phases, timeline, and milestones; Dependencies, required resources"
+  },
+  {
+    "tag": "Financial Summary / ROI",
+    "mandatory": false,
+    "description": "Cost, savings, payback period, TCO, ROI; Use table/chart/graphic if possible"
+  },
+  {
+    "tag": "Risk Mitigation & Compliance",
+    "mandatory": false,
+    "description": "How the solution addresses risk, security, and compliance; Outstanding issues and mitigations"
+  },
+  {
+    "tag": "KPIs & Success Metrics",
+    "mandatory": false,
+    "description": "Specific success metrics (RTO, RPO, uptime %, compliance pass rate, etc.)"
+  },
+  {
+    "tag": "Conclusion & Recommendations",
+    "mandatory": true,
+    "description": "Clear, actionable next steps; Decision or endorsement required"
+  },
+  {
+    "tag": "Q&A",
+    "mandatory": false,
+    "description": "Invite questions and discussion"
+  },
+  {
+    "tag": "Appendices / Technical Deep Dive",
+    "mandatory": false,
+    "description": "Detailed technical diagrams, architectures, or data; Only include if requested or supporting content provided"
+  }
+]

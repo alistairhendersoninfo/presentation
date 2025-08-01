@@ -1,4 +1,6 @@
-# AI PowerPoint Generation Flow  
+
+# AI PowerPoint Generation Flow
+
 ## Control Words: start, pause, continue, stop, generate
 
 ---
@@ -13,10 +15,14 @@
 
 ---
 
-## **Slide Layout Tag Reference Requirement** 
+## **Slide Layout Tag Reference Requirement**
 
 **Before starting Q&A, the user must paste the Slide Layout Tag Table produced by their PPTX analysis script.**  
-- This table must list each available layout index, layout name, all placeholders, and a “Tag” column indicating its intended purpose (e.g., Title, ExecutiveSummary, Agenda, Table, SectionBreak, Outro, etc).
+
+- This table must
+list each available layout index, layout name, all placeholders, and a “Tag” column indicating its intended purpose (e.
+g., Title, ExecutiveSummary, Agenda, Table, SectionBreak, Outro, etc).
+
 - Only layouts that have a tag may be selected for slide generation.
 - The AI will map each section (e.g., Executive Summary, Agenda) to the appropriate layout index using this table.
 - If a section does not have a matching tag, the AI must prompt for clarification or for the user to update the tag table.
@@ -47,13 +53,17 @@
 ---
 
 ## **Start of Flow**
+
 # AI Q&A Input Gathering Rule Set  
+
 ## For DR/BCP/Technical PowerPoint Generator  
+
 *(With Control Flow, Lock-in, and Looping Logic)*
 
 ---
 
 ## 1. **Purpose**
+
 To collect ALL required data in a structured Q&A (question and answer) flow before slide generation, using clear locking and looping rules to guarantee completeness and correctness.
 
 ---
@@ -61,46 +71,53 @@ To collect ALL required data in a structured Q&A (question and answer) flow befo
 ## 2. **Q&A Input Gathering Process**
 
 ### **a. Sequential Questioning**
+
 - The AI must ask for **one item at a time** (single, focused question per prompt).
 - Do not move to the next question until the previous answer is provided and confirmed.
 
 ### **b. Lock-in and Confirmation**
+
 - After each answer is received, AI must:
-    - Echo back the answer for confirmation:  
+  - Echo back the answer for confirmation:  
       "You entered: [user's answer]. Type 'ok' to confirm or re-enter your answer."
     - Only proceed if the user responds with ok.
     - If user provides a new answer, repeat confirmation.
     - Only after confirmation is an answer "locked in."
 
 ### **c. Mandatory Input Enforcement**
+
 - Mandatory questions cannot be skipped.
 - If a user attempts to skip, AI must inform:  
   "This information is required. Please provide an answer."
 
 ### **d. Optional Sections**
+
 - For optional inputs, AI should ask:  
   "Do you want to add [optional section]? (yes/no)"
 - If yes, proceed with Q&A and lock-in as above.
 - If no, skip to the next section.
 
 ### **e. Loop for Correction**
+
 - At any time, if the user says edit [section], AI must:
-    - Display the previous answer for that section.
-    - Allow re-entry and reconfirmation.
+  - Display the previous answer for that section.
+  - Allow re-entry and reconfirmation.
     - All subsequent sections may be re-confirmed if prior answers affect dependencies.
 
 ### **f. Control Commands**
+
 - pause: AI must halt and display "Paused. Type 'continue' to resume or 'stop' to abort. Type 'generate' for current JSON output."
 - continue: Resume at the last question.
 - stop: Abort workflow.
 - generate: Output current JSON for all locked-in answers.
 
 ### **g. Loop Termination**
+
 - The Q&A loop ends only when:
-    - All mandatory answers are locked in and confirmed.
-    - Any selected optional sections are locked in and confirmed.
-    - The user explicitly types generate (can be partial/incomplete).
-    - The user types stop.
+  - All mandatory answers are locked in and confirmed.
+  - Any selected optional sections are locked in and confirmed.
+  - The user explicitly types generate (can be partial/incomplete).
+  - The user types stop.
 
 ---
 
@@ -122,7 +139,7 @@ To collect ALL required data in a structured Q&A (question and answer) flow befo
 14. What are the success metrics?
 15. Are there any supporting technical details for an appendix?
 
-*(Optional: Options/alternatives, technical appendices; prompt for inclusion)*
+- *(Optional: Options/alternatives, technical appendices; prompt for inclusion)*
 
 ---
 
@@ -138,6 +155,7 @@ To collect ALL required data in a structured Q&A (question and answer) flow befo
 ---
 
 ## 5. **AI Must Always:**
+
 - Provide clear, context-aware prompts.
 - Validate each input is reasonable for the section.
 - Never move ahead or generate output unless rules above are satisfied.
@@ -146,11 +164,9 @@ To collect ALL required data in a structured Q&A (question and answer) flow befo
 
 **Embed this rule set into all AI-driven Q&A input modules for technical presentation generation.**
 
-
 ---
 
 **The AI must collect these responses, then generate slides in the presentation flow order, filling each section only with the content provided or marked as OPTIONAL. If no content is given for an OPTIONAL section, skip that section.**
-
 
 ---
 
@@ -288,10 +304,10 @@ Where indicated as OPTIONAL, only include if supporting content is provided.**
 The final step in this workflow is the **slide generation script** (e.g., `pptx_gen.py`). This script is responsible only for consuming the `.pptx` template and the locked-in slide content JSON generated by the Q&A flow above, and producing a new presentation file.
 
 - **This script is a pure consumer and is NOT responsible for:**
-    - Asking questions, prompting the user, or enforcing any Q&A or control flow logic
-    - Validating that all required sections are present or correctly ordered
-    - Checking the correctness of layout indices, tags, or placeholder mappings
-    - Handling any optional/mandatory logic or content rules
+  - Asking questions, prompting the user, or enforcing any Q&A or control flow logic
+  - Validating that all required sections are present or correctly ordered
+  - Checking the correctness of layout indices, tags, or placeholder mappings
+  - Handling any optional/mandatory logic or content rules
 
 - **All validation, content confirmation, and flow enforcement MUST be completed upstream in the Q&A/AI flow, before invoking the generator.**
 

@@ -14,3 +14,9 @@
 ## Logs
 
 - See `/logs/` for all API and error logs.
+
+## Install
+
+sudo apt update
+sudo apt install python3-pip -y
+pip3 install python-pptx
