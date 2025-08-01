@@ -1,11 +1,7 @@
 <?php
 // handlers/ProjectHandler.php
 
-// Ensure logs directory is loaded for logging if needed
-$templatesDir = dirname(__DIR__) . "/templates";
-$projectsDir = dirname(__DIR__) . "/projects";
-
-// List templates
+// Helper to list subdirectories
 function listDirs($dir) {
     $dirs = [];
     foreach (glob($dir . '/*', GLOB_ONLYDIR) as $folder) {
@@ -13,6 +9,10 @@ function listDirs($dir) {
     }
     return $dirs;
 }
+
+$templatesDir = dirname(__DIR__) . "/templates";
+$projectsDir = dirname(__DIR__) . "/projects";
+$configDir = dirname(__DIR__) . "/config";
 $templates = listDirs($templatesDir);
 
 $action = $_GET['action'] ?? '';
@@ -32,29 +32,46 @@ if ($action === 'create') {
             $projectDir = $projectsDir . "/" . $project;
             if (!is_dir($projectDir)) mkdir($projectDir, 0755, true);
 
-            // Copy relevant files to project (optional: expand as needed)
+            // Copy the audit markdown
             @copy("$templatesDir/$template/template_audit.md", "$projectDir/template_audit.md");
-            @copy("presentation_flow.json", "$projectDir/presentation_flow.json");
 
-            // Call the Python script (assumes the script is in python_web and executable)
-            $cmd = sprintf(
-                'cd %s && python3 %s/python_web/analyse_presentation_layouts.py 2>&1',
-                escapeshellarg($projectDir),
-                escapeshellarg(dirname(__DIR__))
-            );
-            exec($cmd, $output, $retval);
+            // Copy presentation_flow.json (from project root or config/)
+            $flowSrc = null;
+            if (file_exists(dirname(__DIR__) . "/presentation_flow.json")) {
+                $flowSrc = dirname(__DIR__) . "/presentation_flow.json";
+            } elseif (file_exists($configDir . "/presentation_flow.json")) {
+                $flowSrc = $configDir . "/presentation_flow.json";
+            }
+            if ($flowSrc) {
+                @copy($flowSrc, "$projectDir/presentation_flow.json");
+            }
 
-            if ($retval === 0) {
-                $message = "Project created and layouts analyzed!";
-                // Show only the summary table from output
-                $start = false;
-                foreach ($output as $line) {
-                    if (strpos($line, '| Tag/Slide Type') !== false) $start = true;
-                    if ($start) $resultTable .= htmlspecialchars($line) . "\n";
-                }
-                if (!$resultTable) $resultTable = "<pre>".htmlspecialchars(implode("\n", $output))."</pre>";
+            // Check if files exist before proceeding
+            if (!file_exists("$projectDir/template_audit.md")) {
+                $error = "Template audit not found. Please re-upload the template.";
+            } elseif (!file_exists("$projectDir/presentation_flow.json")) {
+                $error = "presentation_flow.json not found in root or config directory.";
             } else {
-                $error = "Analysis script failed.<br><pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
+                // Call the Python script (assumes the script is in python_web and executable)
+                $cmd = sprintf(
+                    'cd %s && python3 %s/python_web/analyse_presentation_layouts.py 2>&1',
+                    escapeshellarg($projectDir),
+                    escapeshellarg(dirname(__DIR__))
+                );
+                exec($cmd, $output, $retval);
+
+                if ($retval === 0) {
+                    $message = "Project created and layouts analyzed!";
+                    // Show only the summary table from output
+                    $start = false;
+                    foreach ($output as $line) {
+                        if (strpos($line, '| Tag/Slide Type') !== false) $start = true;
+                        if ($start) $resultTable .= htmlspecialchars($line) . "\n";
+                    }
+                    if (!$resultTable) $resultTable = "<pre>".htmlspecialchars(implode("\n", $output))."</pre>";
+                } else {
+                    $error = "Analysis script failed.<br><pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
+                }
             }
         }
     }
