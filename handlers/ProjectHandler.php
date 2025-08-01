@@ -114,7 +114,7 @@ if ($action === 'create') {
                         </ul>
                     </div>
                     <div class="col2">
-                        <h4>Layouts (Placeholders Only)</h4>
+                        <h4>Layouts (Placeholders & Shape Descriptions)</h4>
                         <?php foreach ($resultData["layouts"] as $layout): ?>
                             <div class="layout-metadata mb-4">
                                 <div class="layout-title"><?= "Layout {$layout['layout_index']}: " . htmlspecialchars($layout['layout_name']) ?></div>
@@ -129,8 +129,19 @@ if ($action === 'create') {
                                             </li>
                                         <?php endforeach; ?>
                                     </ul>
-                                <?php else: ?>
-                                    <div style="color:#888;">No placeholders detected.</div>
+                                <?php endif; ?>
+                                <?php if (!empty($layout['shape_descriptions'])): ?>
+                                    <div style="margin-bottom:0.5em;">
+                                        <b>Shape Descriptions:</b>
+                                        <ul>
+                                            <?php foreach ($layout['shape_descriptions'] as $desc): ?>
+                                                <li><?= htmlspecialchars($desc) ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (empty($layout['placeholders']) && empty($layout['shape_descriptions'])): ?>
+                                    <div style="color:#888;">No content detected.</div>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>

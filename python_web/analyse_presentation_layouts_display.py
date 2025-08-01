@@ -35,6 +35,7 @@ def parse_layouts_from_audit(audit_md):
             layout_idx = int(match.group(1))
             layout_name = match.group(2).strip()
             placeholders = []
+            shape_descriptions = []
             idx += 1
             section = None
             while idx < len(lines):
@@ -42,51 +43,52 @@ def parse_layouts_from_audit(audit_md):
                 if l.startswith("#### Placeholders"):
                     section = "placeholders"
                 elif l.startswith("#### Non-placeholder shapes"):
-                    section = None  # Don't process shapes!
+                    section = "shapes"
                 elif l.startswith("### Layout ") or l == "---":
                     break
                 elif l.startswith("|") and section == "placeholders":
                     cols = [c.strip() for c in l.strip('| \n').split('|')]
                     # Exclude header and all-dash rows
                     if cols and cols[0] not in ('idx', '---', 'Title'):
-                        # Try to get title/name and description from common audit output
-                        if len(cols) >= 4:
+                        # Try to get title and description from standard audit output
+                        if len(cols) >= 5:
                             placeholders.append({
-                                "title": cols[2],
-                                "description": cols[3]
+                                "title": cols[3],
+                                "description": cols[4]
                             })
                         elif len(cols) >= 2:
                             placeholders.append({
                                 "title": cols[0],
                                 "description": cols[1] if len(cols) > 1 else ""
                             })
+                elif l.startswith("|") and section == "shapes":
+                    cols = [c.strip() for c in l.strip('| \n').split('|')]
+                    if cols and cols[0] != 'Title' and cols[2]:
+                        shape_descriptions.append(cols[2])
                 idx += 1
             layouts.append({
                 "layout_index": layout_idx,
                 "layout_name": layout_name,
-                "placeholders": placeholders
+                "placeholders": placeholders,
+                "shape_descriptions": shape_descriptions
             })
         else:
             idx += 1
     return layouts
 
 def main():
-    # Load tag info
     if not os.path.exists(FLOW_JSON):
         print(json.dumps({"error": f"Can't find '{FLOW_JSON}' in current directory."}))
         sys.exit(1)
     tag_info = load_flow_json(FLOW_JSON)
-
-    # Load layouts with metadata
     audit_md = find_first_audit_md()
     if audit_md is None:
         print(json.dumps({"error": "No _audit.md file found in current directory."}))
         sys.exit(1)
     layouts = parse_layouts_from_audit(audit_md)
-
     result = {
-        "slide_tags": tag_info,    # Column 1: slide tags, descriptions, mandatory
-        "layouts": layouts         # Column 2: layout index, name, placeholders only
+        "slide_tags": tag_info,
+        "layouts": layouts
     }
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
