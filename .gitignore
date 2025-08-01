@@ -1,0 +1,9 @@
+/logs/
+/uploads/
+*.env
+/projects/*/slides.json
+/projects/*/full_history.md
+/projects/*/summary_history.md
+/projects/*/slide*_chat.md
+*.pyc
+__pycache__/

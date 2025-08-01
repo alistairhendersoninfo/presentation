@@ -1,0 +1,29 @@
+[
+  {
+    "index": 0,
+    "name": "Title Slide",
+    "tag": "Title",
+    "placeholders": [
+      "Title",
+      "Subtitle"
+    ]
+  },
+  {
+    "index": 1,
+    "name": "Content Slide",
+    "tag": "Content",
+    "placeholders": [
+      "Title",
+      "Bullets"
+    ]
+  },
+  {
+    "index": 2,
+    "name": "Table Slide",
+    "tag": "Table",
+    "placeholders": [
+      "Title",
+      "Table"
+    ]
+  }
+]
