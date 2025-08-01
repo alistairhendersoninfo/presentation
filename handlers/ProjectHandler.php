@@ -14,72 +14,71 @@ $projectsDir = dirname(__DIR__) . "/projects";
 $configDir = dirname(__DIR__) . "/config";
 $templates = listDirs($templatesDir);
 
-$action = $_GET['action'] ?? '';
+$message = '';
+$error = '';
+$output = [];
+$resultData = null;
 
-if ($action === 'create') {
-    $message = '';
-    $error = '';
-    $output = [];
-    $resultData = null;
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
-        $template = basename($_POST['template'] ?? '');
+// Form is always shown, two-column output is shown if $resultData is set
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $project = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['project'] ?? '');
+    $template = basename($_POST['template'] ?? '');
 
-        if (!$project || !$template) {
-            $error = "Please enter a project name and select a template.";
+    if (!$project || !$template) {
+        $error = "Please enter a project name and select a template.";
+    } else {
+        $projectDir = $projectsDir . "/" . $project;
+        if (!is_dir($projectDir)) mkdir($projectDir, 0755, true);
+
+        // Copy the audit markdown
+        @copy("$templatesDir/$template/template_audit.md", "$projectDir/template_audit.md");
+
+        // Copy presentation_flow.json (from root or config/)
+        $flowSrc = null;
+        if (file_exists(dirname(__DIR__) . "/presentation_flow.json")) {
+            $flowSrc = dirname(__DIR__) . "/presentation_flow.json";
+        } elseif (file_exists($configDir . "/presentation_flow.json")) {
+            $flowSrc = $configDir . "/presentation_flow.json";
+        }
+        if ($flowSrc) {
+            @copy($flowSrc, "$projectDir/presentation_flow.json");
+        }
+
+        // Check if files exist before proceeding
+        if (!file_exists("$projectDir/template_audit.md")) {
+            $error = "Template audit not found. Please re-upload the template.";
+        } elseif (!file_exists("$projectDir/presentation_flow.json")) {
+            $error = "presentation_flow.json not found in root or config directory.";
         } else {
-            $projectDir = $projectsDir . "/" . $project;
-            if (!is_dir($projectDir)) mkdir($projectDir, 0755, true);
+            // Call new display Python script
+            $cmd = sprintf(
+                'cd %s && python3 %s/python_web/analyse_presentation_layouts_display.py 2>&1',
+                escapeshellarg($projectDir),
+                escapeshellarg(dirname(__DIR__))
+            );
+            exec($cmd, $output, $retval);
+            $json = json_decode(implode("\n", $output), true);
 
-            // Copy the audit markdown
-            @copy("$templatesDir/$template/template_audit.md", "$projectDir/template_audit.md");
-
-            // Copy presentation_flow.json (from root or config/)
-            $flowSrc = null;
-            if (file_exists(dirname(__DIR__) . "/presentation_flow.json")) {
-                $flowSrc = dirname(__DIR__) . "/presentation_flow.json";
-            } elseif (file_exists($configDir . "/presentation_flow.json")) {
-                $flowSrc = $configDir . "/presentation_flow.json";
-            }
-            if ($flowSrc) {
-                @copy($flowSrc, "$projectDir/presentation_flow.json");
-            }
-
-            // Check if files exist before proceeding
-            if (!file_exists("$projectDir/template_audit.md")) {
-                $error = "Template audit not found. Please re-upload the template.";
-            } elseif (!file_exists("$projectDir/presentation_flow.json")) {
-                $error = "presentation_flow.json not found in root or config directory.";
+            if (isset($json["error"])) {
+                $error = "Analysis script failed.<br><pre>" . htmlspecialchars($json["error"]) . "</pre>";
+            } elseif (!$json || $retval !== 0) {
+                $error = "Analysis script failed.<br><pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
             } else {
-                // Call new display Python script
-                $cmd = sprintf(
-                    'cd %s && python3 %s/python_web/analyse_presentation_layouts_display.py 2>&1',
-                    escapeshellarg($projectDir),
-                    escapeshellarg(dirname(__DIR__))
-                );
-                exec($cmd, $output, $retval);
-                $json = json_decode(implode("\n", $output), true);
-
-                if (isset($json["error"])) {
-                    $error = "Analysis script failed.<br><pre>" . htmlspecialchars($json["error"]) . "</pre>";
-                } elseif (!$json || $retval !== 0) {
-                    $error = "Analysis script failed.<br><pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
-                } else {
-                    $message = "Project created and layouts analyzed!";
-                    $resultData = $json;
-                }
+                $message = "Project created and layouts analyzed!";
+                $resultData = $json;
             }
         }
     }
-    ?>
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Create New Project</title>
-        <meta charset="UTF-8">
-        <link rel="stylesheet" href="/static/style.css">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-        <style>
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create New Project</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
         .twocols { display: flex; gap: 2rem; margin-top: 2rem; flex-wrap: wrap;}
         .twocols > div { background: #fff; border-radius: 1.3rem; box-shadow: 0 4px 18px #20508118; padding:1.4rem 2rem 2rem 2rem;}
         .col1 { flex: 1.1 1 340px; min-width: 320px; }
@@ -87,93 +86,91 @@ if ($action === 'create') {
         .layout-metadata { font-size:0.97em; color: #444;}
         .layout-metadata .layout-title { font-weight:600; color: #205081;}
         .layout-metadata ul { margin-bottom: 0.2em;}
-        </style>
-    </head>
-    <body>
-    <div class="container py-4">
-        <div class="card-upload" style="max-width:600px;">
-            <h2>Create New Project</h2>
-            <?php if ($message && $resultData): ?>
-                <div class="alert alert-success"><?= $message ?></div>
-                <div class="twocols">
-                    <div class="col1">
-                        <h4>Slide Tags (Flow Structure)</h4>
-                        <ul>
-                        <?php foreach ($resultData["slide_tags"] as $tag): ?>
-                            <li>
-                                <span style="font-weight:600; color:#205081"><?= htmlspecialchars($tag["tag"]) ?></span>
-                                <?php if ($tag["mandatory"]): ?>
-                                    <span class="badge bg-success">Mandatory</span>
-                                <?php else: ?>
-                                    <span class="badge bg-secondary">Optional</span>
-                                <?php endif; ?>
-                                <br>
-                                <span style="color:#444;font-size:0.99em"><?= htmlspecialchars($tag["description"]) ?></span>
-                            </li>
-                        <?php endforeach; ?>
-                        </ul>
-                    </div>
-                    <div class="col2">
-                        <h4>Layouts (Placeholders & Shape Descriptions)</h4>
-                        <?php foreach ($resultData["layouts"] as $layout): ?>
-                            <div class="layout-metadata mb-4">
-                                <div class="layout-title"><?= "Layout {$layout['layout_index']}: " . htmlspecialchars($layout['layout_name']) ?></div>
-                                <?php if (!empty($layout['placeholders'])): ?>
-                                    <ul>
-                                        <?php foreach ($layout['placeholders'] as $p): ?>
-                                            <li>
-                                                <b><?= htmlspecialchars($p['title']) ?></b>
-                                                <?php if (!empty($p['description'])): ?>
-                                                    : <?= htmlspecialchars($p['description']) ?>
-                                                <?php endif; ?>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
-                                <?php if (!empty($layout['shape_descriptions'])): ?>
-                                    <div style="margin-bottom:0.5em;">
-                                        <b>Shape Descriptions:</b>
-                                        <ul>
-                                            <?php foreach ($layout['shape_descriptions'] as $desc): ?>
-                                                <li><?= htmlspecialchars($desc) ?></li>
-                                            <?php endforeach; ?>
-                                        </ul>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (empty($layout['placeholders']) && empty($layout['shape_descriptions'])): ?>
-                                    <div style="color:#888;">No content detected.</div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <div class="mt-4"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
-            <?php elseif ($error): ?>
-                <div class="alert alert-danger"><?= $error ?></div>
-                <div class="mt-2"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
-            <?php else: ?>
-                <form method="post" class="mt-3">
-                    <div class="mb-3">
-                        <label for="project" class="form-label">Project Name</label>
-                        <input type="text" name="project" id="project" class="form-control" maxlength="40" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="template" class="form-label">Choose Template</label>
-                        <select name="template" id="template" class="form-select" required>
-                            <option value="">Select Template</option>
-                            <?php foreach ($templates as $t): ?>
-                                <option value="<?= htmlspecialchars($t) ?>"><?= htmlspecialchars($t) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-upload w-100">Create Project &amp; Analyze</button>
-                </form>
-            <?php endif; ?>
-        </div>
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <div class="card-upload" style="max-width:600px;">
+        <h2>Create New Project</h2>
+        <?php if ($error): ?>
+            <div class="alert alert-danger"><?= $error ?></div>
+        <?php elseif ($message): ?>
+            <div class="alert alert-success"><?= $message ?></div>
+        <?php endif; ?>
+        <form method="post" class="mt-3">
+            <div class="mb-3">
+                <label for="project" class="form-label">Project Name</label>
+                <input type="text" name="project" id="project" class="form-control" maxlength="40" required>
+            </div>
+            <div class="mb-3">
+                <label for="template" class="form-label">Choose Template</label>
+                <select name="template" id="template" class="form-select" required>
+                    <option value="">Select Template</option>
+                    <?php foreach ($templates as $t): ?>
+                        <option value="<?= htmlspecialchars($t) ?>"><?= htmlspecialchars($t) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-upload w-100">Create Project &amp; Analyze</button>
+        </form>
     </div>
-    </body>
-    </html>
-    <?php
-    exit;
-}
-?>
+
+    <?php if ($resultData): ?>
+        <div class="twocols mt-5">
+            <div class="col1">
+                <h4>Slide Tags (Flow Structure)</h4>
+                <ul>
+                <?php foreach ($resultData["slide_tags"] as $tag): ?>
+                    <li>
+                        <span style="font-weight:600; color:#205081"><?= htmlspecialchars($tag["tag"]) ?></span>
+                        <?php if ($tag["mandatory"]): ?>
+                            <span class="badge bg-success">Mandatory</span>
+                        <?php else: ?>
+                            <span class="badge bg-secondary">Optional</span>
+                        <?php endif; ?>
+                        <br>
+                        <span style="color:#444;font-size:0.99em"><?= htmlspecialchars($tag["description"]) ?></span>
+                    </li>
+                <?php endforeach; ?>
+                </ul>
+            </div>
+            <div class="col2">
+                <h4>Layouts (Placeholders & Shape Descriptions)</h4>
+                <?php foreach ($resultData["layouts"] as $layout): ?>
+                    <div class="layout-metadata mb-4">
+                        <div class="layout-title"><?= "Layout {$layout['layout_index']}: " . htmlspecialchars($layout['layout_name']) ?></div>
+                        <?php if (!empty($layout['placeholders'])): ?>
+                            <ul>
+                                <?php foreach ($layout['placeholders'] as $p): ?>
+                                    <li>
+                                        <b><?= htmlspecialchars($p['title']) ?></b>
+                                        <?php if (!empty($p['description'])): ?>
+                                            : <?= htmlspecialchars($p['description']) ?>
+                                        <?php endif; ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                        <?php if (!empty($layout['shape_descriptions'])): ?>
+                            <div style="margin-bottom:0.5em;">
+                                <b>Shape Descriptions:</b>
+                                <ul>
+                                    <?php foreach ($layout['shape_descriptions'] as $desc): ?>
+                                        <li><?= htmlspecialchars($desc) ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (empty($layout['placeholders']) && empty($layout['shape_descriptions'])): ?>
+                            <div style="color:#888;">No content detected.</div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div class="mt-4"><a href="../index.php" class="btn btn-wizard">Return to Dashboard</a></div>
+</div>
+</body>
+</html>
